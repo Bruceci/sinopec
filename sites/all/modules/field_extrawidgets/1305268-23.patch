@@ -1,0 +1,40 @@
+diff --git a/field_extrawidgets.module b/field_extrawidgets.module
+index d4df675..20c2c47 100644
+--- a/field_extrawidgets.module
++++ b/field_extrawidgets.module
+@@ -8,7 +8,7 @@
+  *
+  * - Hidden: this widget doesn't show anything on the edit form, and as a
+  *   consequence prevents the user from modifying the content of the widget.
+- *   This is useful in some situations where using hook_field_access() is not 
++ *   This is useful in some situations where using hook_field_access() is not
+  *   suitable (for example when you want to have different edit forms for
+  *   different users).
+  * - Read-only: this widget shows the content of the field on the edit form,
+@@ -54,7 +54,7 @@ function field_extrawidgets_field_widget_info() {
+  */
+ function field_extrawidgets_widget_settings($field, $instance) {
+   $settings = isset($instance['widget']['settings']) ? $instance['widget']['settings'] : array();
+-  
++
+   if (empty($settings['formatter'])) {
+     $field_type = field_info_field_types($field['type']);
+     $settings['formatter'] = $field_type['default_formatter'];
+@@ -174,13 +174,12 @@ function field_extrawidgets_field_widget_form(&$form, &$form_state, $field, $ins
+   }
+ 
+   if ($widget_type == 'field_extrawidgets_read_only') {
+-    // Clone the entity to avoid messing with it.
+-    $entity_type = $element['#entity_type'];
+-    if (!isset($form_state[$entity_type])) {
++    if (!isset($element['#entity'])) {
+       return array();
+     }
+-    $cloned_entity = clone $form_state[$entity_type];
+-
++    // Clone the entity to avoid messing with it.
++    $entity_type = $element['#entity_type'];
++    $cloned_entity = clone $element['#entity'];
+     if (!field_access('view', $field, $entity_type, $cloned_entity)) {
+       // The current user doesn't have access to view this field.
+       return array();

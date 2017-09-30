@@ -1,0 +1,355 @@
+<?php
+/*
+ Implements hook_libraries_info();
+*/
+
+function sinopec_tweek_libraries_info(){
+   $libraries['jquery.cycle2'] = array(
+	'name' => 'Jquery Cycle2',
+	'vendor url' => 'http://jquery.malsup.com/cycle2/',
+  'download url' => 'http://jquery.malsup.com/cycle2/download/',
+  'version arguments' => array(
+     'file' => 'jquery.cycle2.min.js',
+  	 'pattern' => '/version: (\d+)/',
+     'lines' => 5,
+       
+	   ),
+  'files' => array(
+		'js' => array('jquery.cycle2.min.js','jquery.cycle2.carousel.min.js'),
+	),
+
+   );
+  $libraries['bootstrap'] = array(
+  'name' => 'Bootstrap',
+  'vendor url' => 'http://www.getbootstrap.com/',
+  'download url' => 'http://www.getbootstrap.com/',
+  'version arguments' => array(
+     'file' => 'js/bootstrap.min.js',
+     'pattern' => '/v(\d+)/',
+     'lines' => 5,
+       
+     ),
+  'files' => array(
+    'js' => array('js/bootstrap.min.js'),
+    'css' => array('css/bootstrap.min.css'),
+  ),
+
+   );
+
+   return $libraries;
+}
+/*Implements hook_views_pre_view */
+function sinopec_tweek_views_pre_view(&$view, &$display_id, &$args){
+  $displays = array('recommend_product', 'main_slideshow');
+  if(in_array($display_id,$displays)){
+    if(($library = libraries_load('jquery.cycle2')) && !empty($library['loaded'])){
+      drupal_add_js(drupal_get_path('module', 'sinopec_tweek') . '/js/cycle2.js');
+    }; 
+  }
+}
+
+/* Implement hook_init()*/
+function sinopec_tweek_init(){
+
+  drupal_add_js(drupal_get_path('module','sinopec_tweek') . '/js/holder.min.js');
+}
+
+
+/*Implements hook_block_info
+*/
+function sinopec_tweek_block_info(){
+  $blocks['main_slideshow'] = array(
+            'info' => t('Main Slideshow in Every Page'),
+            'cache' => DRUPAL_NO_CACHE,
+     );
+  $blocks['contact_pane'] = array(
+      'info' => t('Contact Pane'),
+      'cache' => DRUPAL_CACHE_GLOBAL,
+    );
+  $blocks['product_pane'] = array(
+      'info' => t('Product Pane'),
+      'cache' => DRUPAL_CACHE_GLOBAL,
+    );
+  $blocks['about_pane'] = array(
+      'info' => t('About Pane'),
+      'cache' => DRUPAL_CACHE_GLOBAL,
+    );
+  return $blocks;
+}
+/*Implements hook_block_view()*/
+function sinopec_tweek_block_view($delta = ''){
+  $block = array();
+
+  switch($delta){
+    case 'main_slideshow':
+
+    $path = drupal_get_path('module','sinopec_tweek');
+    $block['subject'] ='';
+    $block['content'] = array(
+        '#theme' => 'sinopec_slideshow',
+        '#images' => _get_slide_iamges(4),
+  
+      );
+
+    break;
+    case 'contact_pane':
+     $contact_info = variable_get('contact_info', array());
+     $block['subject'] = 'Contact US';
+     $block['content'] = array(
+          '#theme' => 'item_list',
+          '#items' => array(
+              $contact_info['telephone'],
+              $contact_info['mobilephone'],
+              $contact_info['email'],              
+              $contact_info['address'],
+
+            ),
+          '#type' => 'ul',
+      );
+     break;
+     case 'product_pane':
+      $block['subject'] = 'Product Center';
+      $block['content'] = array(
+          '#theme' => 'product_pane',
+          '#product_list' => _get_product_list(3),
+          '#link' => 'http://www.baidu.com',
+
+
+        );
+      break;
+      case 'about_pane':
+        $block['subject'] = t('About US');
+        $block['content'] = array(
+            '#theme' => 'about_pane',
+            '#content' => _get_about_content(),
+            '#background' => _get_about_background(),
+          );
+
+      break;
+  }
+  return $block;
+}
+   /* Implement hook_block_configure*/
+function sinopec_tweek_block_configure($delta = ''){
+  $form = array();
+  if($delta == 'contact_pane'){
+    print('hehh');
+    $default_value = variable_get('contact_info',array('telephone' =>'','mobilephone'=>'','address' => '', 'email' => ''));
+    $form = array(
+        'telephone' => array(
+          '#type' => 'textfield',
+          '#title' => t('Telephone'),
+          '#default_value' => $default_value['telephone'],
+        ),
+        'mobilephone' => array(
+          '#type' => 'textfield',
+          '#title' => t('Mobilphone'),
+          '#default_value' => $default_value['mobilephone'],
+        ),      
+        'address' => array(
+          '#type' => 'textfield',
+          '#title' => t('Address'),
+          '#default_value' => $default_value['address'],
+        ),
+        'email' => array(
+          '#type' => 'textfield',
+          '#title' => t('Email'),
+          '#default_value' => $default_value['email'],
+        ),
+        
+      );
+  }
+  return $form;
+}
+/* Implement hook_block_save */
+
+function sinopec_tweek_block_save($delta = '', $edit = array()){
+  if($delta == 'contact_pane'){
+    variable_set('contact_info',array(
+        'telephone' => $edit['telephone'],
+        'mobilephone' => $edit['mobilephone'],
+        'address' => $edit['address'],
+        'email' => $edit['email'],
+      ));
+  }
+}
+/*custom functions */
+function _get_slide_iamges($num = 3){
+  $query = new EntityFieldQuery();
+  $slides = $query->entityCondition('entity_type', 'while')
+    ->entityCondition('bundle','image')
+    ->propertyCondition('status', 1)
+    ->propertyOrderBy('id', 'DESC')
+    ->fieldCondition('field_id_group', 'value', 'slide')
+    ->range(0,$num)
+    ->execute();
+    $ids = array();
+    if(isset($slides['while'])){
+       foreach($slides['while'] as $nid => $n){
+         $ids[] = $nid;
+       }
+      $slidesNode = entity_load('while', $ids);
+
+      $iamges = array();
+      foreach ($slidesNode as $nid => $n) {
+       $nodeWrapper = entity_metadata_wrapper('while',$n);
+       $media= $nodeWrapper->field_media_image->value();
+       $images[] = file_create_url($media['uri']); 
+      }
+      return $images;
+
+    }
+    
+   return array();
+}
+function _get_product_list($num = 5){
+  $query = new EntityFieldQuery();
+  $products = $query->entityCondition('entity_type', 'node')
+        ->entityCondition('bundle','product')
+        ->propertyCondition('status', 1)
+        ->propertyOrderBy('nid', 'DESC')
+        ->range(0, $num)
+        ->execute();
+  $ids = array();
+  if(isset($products['node'])){
+    $ids = array_keys($products['node']);
+  }
+  $productNodes =entity_load('node', $ids);
+  $return = array();
+  foreach ($productNodes as $nid => $n) {
+    $nodeWrapper = entity_metadata_wrapper('node', $n);
+    $media = $nodeWrapper->field_picture->value();
+    $image = theme('image_style', array('path' => $media['uri'],'style_name' => 'thumbnail'));
+    $children = array(array('data' => $image, 'class' => array('image')), array('data' => $nodeWrapper->field_price->value(), 'class' => array('price')),array('data' => $nodeWrapper->title->value(),'class' => array('title')));
+    $return[] = array('data' => '', 'children' => $children);
+    
+  }
+
+  return $return;
+
+}
+function _get_about_content(){
+   $nid = 9;
+   $nodes = entity_load('node', array($nid));
+   $node = reset($nodes);
+   $nodeWrapper = entity_metadata_wrapper('node',$node);
+   return $nodeWrapper->body->value->value();
+
+}
+function _get_about_background(){
+  $query = new EntityFieldQuery();
+  $stubble = $query->entityCondition('entity_type', 'while')
+          ->entityCondition('bundle', 'image')
+          ->propertyCondition('status', 1)
+          ->fieldCondition('field_identifier', 'value', 'background_about')
+          ->execute();
+  $images = entity_load('while',array_keys($stubble['while']));
+  $image = reset($images);
+   $imageWrapper = entity_metadata_wrapper('while',$image);
+   $media = $imageWrapper->field_media_image->value();
+   return file_create_url($media['uri']);
+}
+
+/* Implement hook_theme() */
+
+function sinopec_tweek_theme($existing, $type, $theme, $path){
+  
+ return array(
+    'sinopec_slideshow' => array(
+      'variables' => array(
+        'images' => array(),
+        ),        
+      ),
+
+    'product_pane' => array(
+        'variables' => array(
+            'product_list' => array(),
+            'link' => '',
+          ),
+
+      ),
+    'about_pane' => array(
+        'variables' => array(
+            'content' => '',
+            'background' => '',
+          ),
+      ),
+
+  );
+
+
+
+}
+
+
+function theme_sinopec_slideshow($variables){
+    if(!$variables['images']){
+      return;
+    }
+   libraries_load('bootstrap');
+    $items = '';
+    $active = 'active';
+    foreach($variables['images'] as $image){
+    $items .= '<div class="item ' . $active .'">
+                   <img src="' . $image .'"/>
+              </div>';
+        $active = '';
+    }
+    $suffix = array(
+           '#markup' => '<a class="left carousel-control" href="#mainSlide" role="button" data-slide="prev">
+              <span class="glyphicon glyphicon-chevron-left"></span>
+           </a>
+              
+           <a class="right carousel-control" href="#mainSlide" role="button" data-slide="next">
+              <span class="glyphicon glyphicon-chevron-right"></span>
+           </a>'
+
+      );
+   $build = array(
+
+         '#prefix' => '<div class="container"><div id="mainSlide" class="carousel slide" data-ride="carousel">
+          <div class="carousel-inner">',
+         '#markup' => $items,
+         '#suffix' => '</div></div>'. drupal_render($suffix) . '</div>' ,
+
+    ); 
+
+   return drupal_render($build);
+
+}
+function theme_product_pane($variables){
+   
+     $products = array(
+        '#theme' => 'item_list',
+        '#items' => $variables['product_list'],
+        '#type' => 'ul',
+      );
+     $link = l('Read More', $variables['link']);
+
+   return drupal_render($products) . $link;
+
+
+}
+function theme_about_pane($variables){
+   return '<div style="background-image:url('. $variables['background'] .')">' . $variables['content'] . '</div>';
+}
+
+
+/*Implement hook_form_alter*/
+function sinopec_tweek_form_alter(&$form, &$form_state, $form_id){
+    $bundle = 'image';
+    if($form_id == 'while_edit_' . $bundle .'_form' && $form_state['op'] = 'edit'){
+        $form['#after_build'][] = 'field_readonly_setting';
+    }
+}
+function field_readonly_setting(&$form, &$form_state){
+    $fields = array('field_identifier','field_id_group');
+    foreach ($fields as $field) {
+        if(isset($form[$field]) && !empty($form['#entity']->$field)){
+          $form[$field]['und'][0]['value']['#attributes']['readonly'] ='readonly';
+          $form_state['values'][$field]['und'][0]['value'] = $form[$field]['und'][0]['value']['#default_value'];
+      }
+    }
+    return $form;
+  
+}

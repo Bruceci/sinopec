@@ -1,0 +1,4 @@
+name = Sinopec Tweek
+description = Tweek the website
+core = 7.x
+dependencies[] = libraries
